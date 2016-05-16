@@ -1,0 +1,299 @@
+#include <bits/stdc++.h>
+#include <boost/rational.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
+
+using namespace std;
+using namespace boost;
+
+namespace GaussianElimination
+{
+    ///------------------------------------------------------------
+    constexpr int MAX_EQ = 300 + 1;
+    constexpr int MAX_VAR = 300 + 1;
+
+    using T = boost::multiprecision::cpp_int;
+    using TYPE = rational<T>;
+
+    const TYPE EPS = rational<T>(0);
+
+    TYPE A[MAX_EQ + 1][MAX_VAR + 1];
+    TYPE B[MAX_EQ + 1][MAX_VAR + 1];
+
+    TYPE solutions[MAX_VAR + 1];
+
+    TYPE determinant;
+
+    int N, M;
+    ///------------------------------------------------------------
+
+    ///------------------------------------------------------------
+    void clear()
+    {
+        determinant = 1;
+
+        for (int i = 0; i <= MAX_EQ; ++i)
+            for (int j = 0; j <= MAX_VAR; ++j)
+                A[i][j] = B[i][j] = 0;
+
+        for (int j = 0; j <= MAX_VAR; ++j)
+            solutions[j] = 0;
+    }
+
+    void makeIdentity()
+    {
+        for (int i = 1; i <= N; ++i)
+            B[i][i] = 1;
+    }
+
+    bool checkIfInvertible()
+    {
+        assert(N == M);
+
+        for (int i = 1; i <= N; ++i)
+            if (A[i][i] != 1)
+                return false;
+
+        return true;
+    }
+    ///------------------------------------------------------------
+
+    ///------------------------------------------------------------
+    void swapLines(int x, int y) /// swap(X, Y)
+    {
+        swap(A[x], A[y]);
+        swap(B[x], B[y]);
+
+        cerr << "SWAP LINES : " << x << " " << y << endl;
+    }
+
+    void divideLine(int line, TYPE rat) /// X = X / rat
+    {
+        assert(abs(rat) > EPS);
+
+        for (int j = 1; j <= M; ++j)
+            A[line][j] /= rat;
+
+        for (int j = 1; j <= M; ++j)
+            B[line][j] /= rat;
+
+        cerr << "MULTIPLY :: " << "L" << line << " => " << "L" << line << " x " << 1 / rat << endl;
+    }
+
+    void changeLines(int x, int y, TYPE rat) /// X = X - rat * Y
+    {
+        for (int i = 1; i <= M; ++i)
+            A[x][i] -= rat * A[y][i];
+
+        for (int i = 1; i <= M; ++i)
+            B[x][i] -= rat * B[y][i];
+
+        cerr << "ADD :: " << "L" << x << " => " << "L" << x << " + (" << "L" << y << " x " << -rat << ")" << endl;
+    }
+    ///------------------------------------------------------------
+
+    void rowEchelonForm()
+    {
+       cerr << "START ROW ECHELON" << endl;
+
+        int i = 1, j = 1;
+
+        while (i <= N && j <= M)
+        {
+            int k = i;
+
+            while (k <= N && abs(A[k][j]) < EPS)
+                k++;
+
+            if (k == N + 1)
+            {
+                j++;
+                continue;
+            }
+
+            if (k != i)
+            {
+                swapLines(k, i);
+                determinant *= (-1);
+            }
+
+            determinant *= A[i][j];
+            assert(abs(A[i][j]) > EPS);
+
+            if (A[i][j] != 1)
+                divideLine(i, A[i][j]);
+
+            for (int l = i + 1; l <= N; ++l)
+                if (abs(A[l][j]) > EPS)
+                    changeLines(l, i, A[l][j]);
+
+            i++;
+            j++;
+        }
+
+        cerr << "FINISH ROW ECHELON" << endl << endl;
+    }
+
+    void reducedRowEchelonForm()
+    {
+        cerr << "START REDUCED ROW ECHELON" << endl;
+
+        for (int i = N; i >= 1; i--)
+        {
+            int j = 1;
+
+            while (j <= M && abs(A[i][j]) < EPS)
+                j++;
+
+            if (j <= M)
+            {
+                for (int k = i - 1; k >= 1; k--)
+                    if (abs(A[k][j]) > EPS)
+                        changeLines(k, i, A[k][j]);
+            }
+        }
+
+        cerr << "FINISH REDUCED ROW ECHELON" << endl << endl;
+    }
+
+    template<typename S>
+    vector<vector<double>> computeInverse(const vector<vector<S>> &coef)
+    {
+        assert(coef.size() >= 1);
+        assert(coef[0].size() >= 1);
+
+        GaussianElimination::N = coef.size();
+        GaussianElimination::M = coef[0].size();
+
+        if (N != M)
+        {
+            cerr << "Matrix not invertible : N != M (non-square)\n";
+            return {};
+        }
+
+        clear();
+
+        for (int i = 0; i < N; ++i)
+            for (int j = 0; j < M; ++j)
+                A[i + 1][j + 1] = coef[i][j];
+
+        makeIdentity();
+        rowEchelonForm();
+
+        if (checkIfInvertible() == false)
+        {
+            cerr << "Matrix not invertible\n";
+            return {};
+        }
+
+        reducedRowEchelonForm();
+
+        vector<vector<double>> inverse(N);
+
+        for (int i = 1; i <= N; ++i)
+        {
+            inverse[i - 1].resize(M);
+
+            for (int j = 1; j <= M; ++j)
+            {
+                inverse[i - 1][j - 1] = boost::rational_cast<double>(B[i][j]);
+                cerr << B[i][j] << " ";
+            }
+
+            cerr << endl;
+        }
+
+        return inverse;
+    }
+
+    template<typename S>
+    vector<double> solveSystemOfEquations(const vector<vector<S>> &coef, const vector<S> &bs)
+    {
+        assert(coef.size() >= 1);
+        assert(coef[0].size() >= 1);
+
+        GaussianElimination::N = coef.size();
+        GaussianElimination::M = coef[0].size();
+
+        assert(static_cast<int>(bs.size()) == GaussianElimination::N);
+
+        clear();
+
+        for (int i = 0; i < N; ++i)
+            for (int j = 0; j < M; ++j)
+                A[i + 1][j + 1] = coef[i][j];
+
+        for (int i = 0; i < N; ++i)
+            B[i + 1][1] = bs[i];
+
+        rowEchelonForm();
+        reducedRowEchelonForm();
+
+        for (int i = N; i >= 1; i--)
+        {
+            int j = 1;
+
+            while (j <= M && abs(A[i][j]) < EPS)
+                j++;
+
+            if (j == M + 1)
+            {
+                if (abs(B[i][1]) > EPS)
+                {
+                    cerr << "Impossible!" << endl;
+                    return {};
+                }
+            }
+            else
+            {
+                solutions[i] = B[i][1];
+
+                for (int p = j + 1; p <= M; ++p)
+                    solutions[i] -= A[i][p] * solutions[p];
+            }
+        }
+
+        vector<double> solution(M);
+
+        for (int j = 0; j < M; ++j)
+            solution[j] = boost::rational_cast<double>(solutions[j + 1]);
+
+        for (int j = 1; j <= M; ++j)
+            cerr << solutions[j] << " ";
+
+        cerr << endl;
+
+        return solution;
+    }
+
+    template<typename S>
+    double computeDeterminant(const vector<vector<S>> &coef)
+    {
+        assert(coef.size() >= 1);
+        assert(coef[0].size() >= 1);
+
+        GaussianElimination::N = coef.size();
+        GaussianElimination::M = coef[0].size();
+
+        assert(N == M);
+
+        clear();
+
+        for (int i = 1; i <= N; ++i)
+            for (int j = 1; j <= M; ++j)
+                A[i][j] = coef[i - 1][j - 1];
+
+        rowEchelonForm();
+
+        if (checkIfInvertible() == 0)
+            determinant = 0;
+
+        cerr << "DETERMINANT = " << determinant << endl;
+
+        return boost::rational_cast<double>(determinant);
+    }
+}
+
+int main()
+{
+    return 0;
+}
