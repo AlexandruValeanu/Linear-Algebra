@@ -1,4 +1,3 @@
-```c++
 #include <iostream>
 #include <memory>
 #include <algorithm>
@@ -354,4 +353,3 @@ int main()
 {
     return 0;
 }
-```
