@@ -1,0 +1,355 @@
+#include <iostream>
+#include <memory>
+#include <algorithm>
+#include <vector>
+#include <cassert>
+#include <ostream>
+#include <sstream>
+
+template<typename T>
+class Matrix
+{
+public:
+
+    Matrix();
+    Matrix(size_t, size_t);
+    void resize(size_t, size_t);
+
+    typename std::vector<T>::iterator begin();
+    typename std::vector<T>::iterator end();
+
+    typename std::vector<T>::const_iterator begin() const;
+    typename std::vector<T>::const_iterator end() const;
+
+    /*Retrieves a single element in the Matrix. Bounds-checking is performed.*/
+    T& at(size_t, size_t);
+    const T& at(size_t, size_t) const;
+    T& operator()(size_t, size_t);
+    const T& operator()(size_t, size_t) const;
+
+    /* Compound addition and subtraction. */
+    Matrix& operator += (const Matrix&);
+    Matrix& operator -= (const Matrix&);
+
+    /* Compound scalar multiplication and division. */
+    Matrix& operator *= (const T&);
+    Matrix& operator /= (const T&);
+
+    size_t rows() const;
+    size_t columns() const;
+    size_t size() const;
+
+private:
+    std::vector<T> data;
+    size_t M, N;
+};
+
+template<typename T>
+Matrix<T>::Matrix() : data{}, M{0}, N{0} {
+}
+
+template<typename T>
+Matrix<T>::Matrix(size_t i, size_t j) : data{}, M{i}, N{j} {
+    this->data.resize(i * j);
+}
+
+template<typename T>
+void Matrix<T>::resize(size_t i, size_t j)
+{
+    this->M = i;
+    this->N = j;
+    this->data.resize(i * j);
+}
+
+template <typename T>
+typename std::vector<T>::iterator Matrix<T>::begin()
+{
+    return this->data.begin();
+}
+
+template <typename T>
+typename std::vector<T>::iterator Matrix<T>::end()
+{
+    return this->data.end();
+}
+
+template <typename T>
+typename std::vector<T>::const_iterator Matrix<T>::begin() const
+{
+    return this->data.begin();
+}
+
+template <typename T>
+typename std::vector<T>::const_iterator Matrix<T>::end() const
+{
+    return this->data.end();
+}
+
+template <typename T>
+T& Matrix<T>::at(size_t i, size_t j)
+{
+    if (i >= this->M || j >= this->N)
+        throw std::out_of_range{"Matrix::at"};
+
+    return this->data[i * N + j];
+}
+
+template <typename T>
+const T& Matrix<T>::at(size_t i, size_t j) const
+{
+    if (i >= this->M || j >= this->N)
+        throw std::out_of_range{"Matrix::at"};
+
+    return this->data[i * N + j];
+}
+
+template <typename T>
+T& Matrix<T>::operator ()(size_t i, size_t j)
+{
+    return this->at(i, j);
+}
+
+template <typename T>
+const T& Matrix<T>::operator ()(size_t i, size_t j) const
+{
+    return this->at(i, j);
+}
+
+template <typename T>
+Matrix<T>& Matrix<T>::operator += (const Matrix<T>& rhs)
+{
+    assert(this->M == rhs.rows());
+    assert(this->N == rhs.columns());
+
+    std::transform(this->begin(), this->end(), rhs.begin(), this->begin(), std::plus<T>());
+    return *this;
+}
+
+template <typename T>
+Matrix<T>& Matrix<T>::operator -= (const Matrix<T>& rhs)
+{
+    assert(this->M == rhs.rows());
+    assert(this->N == rhs.columns());
+
+    std::transform(this->begin(), this->end(), rhs.begin(), this->begin(), std::minus<T>());
+    return *this;
+}
+
+template <typename T>
+Matrix<T>& Matrix<T>::operator *= (const T& scalar)
+{
+    std::transform(this->begin(), this->end(), this->begin(),
+                   std::bind2nd(std::multiplies<T>(), scalar));
+    return *this;
+}
+
+template <typename T>
+Matrix<T>& Matrix<T>::operator /= (const T& scalar)
+{
+    std::transform(this->begin(), this->end(), this->begin(),
+                   std::bind2nd(std::divides<T>(), scalar));
+    return *this;
+}
+
+template <typename T>
+size_t Matrix<T>::rows() const
+{
+    return this->M;
+}
+
+template <typename T>
+size_t Matrix<T>::columns() const
+{
+    return this->N;
+}
+
+template <typename T>
+size_t Matrix<T>::size() const
+{
+    return this->M * this->N;
+}
+
+template<typename T>
+std::istream& operator >> (std::istream& stream, Matrix<T>& lhs)
+{
+    size_t n, m;
+    stream >> n >> m;
+    lhs.resize(n, m);
+
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = 0; j < m; ++j)
+            stream >> lhs(i, j);
+
+    return stream;
+}
+
+template<typename T>
+std::ostream& operator << (std::ostream& stream, const Matrix<T>& lhs)
+{
+    std::stringstream sstream;
+
+    for (size_t i = 0; i < lhs.rows(); ++i)
+    {
+        for (size_t j = 0; j < lhs.columns(); ++j)
+        {
+            sstream << lhs(i, j);
+
+            if (j + 1 != lhs.columns())
+                sstream << " ";
+        }
+
+        if (i + 1 != lhs.rows())
+            sstream << "\n";
+    }
+
+    stream << sstream.str();
+    return stream;
+}
+
+/* Binary addition and subtraction. */
+template <typename T>
+const Matrix<T> operator + (const Matrix<T>& lhs, const Matrix<T>& rhs)
+{
+    assert(lhs.rows() == rhs.rows());
+    assert(lhs.columns() == rhs.columns());
+
+    return Matrix<T>(lhs) += rhs;
+}
+
+template <typename T>
+const Matrix<T> operator - (const Matrix<T>& lhs, const Matrix<T>& rhs)
+{
+    assert(lhs.rows() == rhs.rows());
+    assert(lhs.columns() == rhs.columns());
+
+    return Matrix<T>(lhs) -= rhs;
+}
+
+/* Binary operators implemented by compound assignment operators. */
+template <typename T>
+const Matrix<T> operator * (const Matrix<T>& lhs, const T& scalar)
+{
+    return Matrix<T>(lhs) *= scalar;
+}
+
+template <typename T>
+const Matrix<T> operator / (const Matrix<T>& lhs, const T& scalar)
+{
+    return Matrix<T>(lhs) /= scalar;
+}
+
+template <typename T>
+const Matrix<T> operator * (const T& scalar, const Matrix<T>& lhs)
+{
+    return Matrix<T>(lhs) *= scalar;
+}
+
+template <typename T>
+const Matrix<T> operator / (const T& scalar, const Matrix<T>& lhs)
+{
+    return Matrix<T>(lhs) /= scalar;
+}
+
+/* Unary + just returns a copy of its argument. */
+template <typename T>
+const Matrix<T> operator + (const Matrix<T>& lhs)
+{
+    return lhs;
+}
+
+/* Unary minus negates its argument. */
+template <typename T>
+const Matrix<T> operator - (const Matrix<T>& lhs)
+{
+  return Matrix<T>(lhs) *= T(-1);
+}
+
+template<typename T>
+const Matrix<T> operator * (const Matrix<T>& lhs, const Matrix<T>& rhs)
+{
+    size_t N = lhs.rows;
+    size_t M = lhs.columns();
+    size_t P = rhs.columns();
+
+    assert(lhs.columns() == rhs.rows());
+
+    Matrix<T> result(N, P);
+
+    for (size_t i = 0; i < M; ++i)
+        for (size_t k = 0; k < N; ++k)
+            for (size_t j = 0; j < P; ++j)
+                result(i, j) += lhs(i, k) * rhs(k, j);
+
+    return result;
+}
+
+/* Special-case: Multiplication with assignment. */
+template <typename T>
+Matrix<T>& operator *= (Matrix<T>& lhs, const Matrix<T>& rhs)
+{
+    return lhs = lhs * rhs;
+}
+
+template<typename T>
+bool operator == (const Matrix<T>& lhs, const Matrix<T>& rhs)
+{
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+template<typename T>
+bool operator != (const Matrix<T>& lhs, const Matrix<T>& rhs)
+{
+    return !(lhs == rhs);
+}
+
+template<typename T>
+const Matrix<T> transpose(const Matrix<T>& lhs)
+{
+    size_t N = lhs.rows();
+    size_t M = lhs.columns;
+
+    Matrix<T> result(N, M);
+
+    for (size_t i = 0; i < M; ++i)
+        for (size_t j = 0; j < N; ++j)
+            result(j, i) = lhs(i, j);
+
+    return result;
+}
+
+template<typename T>
+const Matrix<T> identity(size_t N)
+{
+    Matrix<T> result(N, N);
+
+    for (size_t i = 0; i < N; ++i)
+        result(i, i) = T(1);
+
+    return result;
+}
+
+template<typename T>
+const Matrix<T> matrix_exponential(const Matrix<T>& lhs, size_t expo)
+{
+    assert(lhs.rows() == lhs.columns());
+    size_t M = lhs.rows();
+
+    Matrix<T> result = identity<T>(M);
+    Matrix<T> A = lhs;
+
+    while (expo > 0)
+    {
+        if (expo & 1)
+            result *= A;
+
+        A *= A;
+        expo >>= 1;
+    }
+
+    return result;
+}
+
+int main()
+{
+    return 0;
+}
