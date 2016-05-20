@@ -279,7 +279,7 @@ const Matrix<T> operator - (const Matrix<T>& lhs)
 template<typename T>
 const Matrix<T> operator * (const Matrix<T>& lhs, const Matrix<T>& rhs)
 {
-    size_t N = lhs.rows;
+    size_t N = lhs.rows();
     size_t M = lhs.columns();
     size_t P = rhs.columns();
 
