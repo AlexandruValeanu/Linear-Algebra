@@ -39,6 +39,18 @@ public:
     size_t columns() const;
     size_t size() const;
 
+    void addToLine(size_t, const T&);
+    void addToColumn(size_t, const T&);
+
+    void multiplyLine(size_t, const T&);
+    void multiplyColumn(size_t, const T&);
+
+    void swapLines(size_t, size_t);
+    void swapColumns(size_t, size_t);
+
+    void linearCombinationLine(size_t, size_t, size_t, const T&, const T&);
+    void linearCombinationColumn(size_t, size_t, size_t, const T&, const T&);
+
 private:
     std::vector<T> data;
     size_t M, N;
@@ -349,7 +361,171 @@ const Matrix<T> matrix_exponential(const Matrix<T>& lhs, size_t expo)
     return result;
 }
 
+template<typename T>
+void Matrix<T>::addToLine(size_t x, const T& scalar)
+{
+    for (size_t i = 0; i < this->columns(); ++i)
+        this->at(x, i) += scalar;
+}
+
+template<typename T>
+void Matrix<T>::addToColumn(size_t x, const T& scalar)
+{
+    for (size_t i = 0; i < this->rows(); ++i)
+        this->at(i, x) += scalar;
+}
+
+template<typename T>
+void Matrix<T>::multiplyLine(size_t x, const T& scalar)
+{
+    for (size_t i = 0; i < this->columns(); ++i)
+        this->at(x, i) *= scalar;
+}
+
+template<typename T>
+void Matrix<T>::multiplyColumn(size_t x, const T& scalar)
+{
+    for (size_t i = 0; i < this->rows(); ++i)
+        this->at(i, x) *= scalar;
+}
+
+template<typename T>
+void Matrix<T>::swapLines(size_t x, size_t y)
+{
+    for (size_t i = 0; i < this->columns(); ++i)
+        std::swap(this->at(x, i), this->at(y, i));
+}
+
+template<typename T>
+void Matrix<T>::swapColumns(size_t x, size_t y)
+{
+    for (size_t i = 0; i < this->rows(); ++i)
+        std::swap(this->at(i, x), this->at(i, y));
+}
+
+template<typename T>
+void Matrix<T>::linearCombinationLine(size_t dest, size_t src1, size_t src2, const T& scalar1, const T& scalar2)
+{
+    for (size_t i = 0; i < this->columns(); ++i)
+        this->at(dest, i) = scalar1 * this->at(src1, i) + scalar2 * this->at(src2, i);
+}
+
+template<typename T>
+void Matrix<T>::linearCombinationColumn(size_t dest, size_t src1, size_t src2, const T& scalar1, const T& scalar2)
+{
+    for (size_t i = 0; i < this->rows(); ++i)
+        this->at(i, dest) = scalar1 * this->at(i, src1) + scalar2 * this->at(i, src2);
+}
+
+#include <bits/stdc++.h>
+using namespace std;
+
 int main()
 {
+    constexpr int MAX = 1000;
+    int mat[MAX][MAX];
+
+    auto randInt = []() {
+
+        int r = rand() % 1000;
+        if (rand() & 1)
+        r = -r;
+
+        return r;
+    };
+
+    srand(time(nullptr));
+
+    int N = 768;
+    int M = 981;
+
+    const int T = 2000000;
+
+    Matrix<int> A(N, M);
+
+    for (int t = 0; t < T; ++t)
+    {
+        if (rand() & 1)
+        {
+            int x = rand() % N;
+            int v = randInt();
+
+            A.addToLine(x, v);
+
+            for (int i = 0; i < M; ++i)
+                mat[x][i] += v;
+        }
+        else
+        {
+            int x = rand() % M;
+            int v = randInt();
+
+            A.addToColumn(x, v);
+
+            for (int i = 0; i < N; ++i)
+                mat[i][x] += v;
+        }
+    }
+
+    for (int t = 0; t < 5000; ++t)
+    {
+        if (rand() & 1)
+        {
+            int x = rand() % N;
+            int v = randInt();
+
+            A.multiplyLine(x, v);
+
+            for (int i = 0; i < M; ++i)
+                mat[x][i] *= v;
+        }
+        else
+        {
+            int x = rand() % M;
+            int v = randInt();
+
+            A.multiplyColumn(x, v);
+
+            for (int i = 0; i < N; ++i)
+                mat[i][x] *= v;
+        }
+    }
+
+    for (int t = 0; t < 50000; ++t)
+    {
+        if (rand() & 1)
+        {
+            int x = rand() % N;
+            int y = rand() % N;
+            int z = rand() % N;
+
+            int v1 = randInt();
+            int v2 = randInt();
+
+            A.linearCombinationLine(x, y, z, v1, v2);
+
+            for (int i = 0; i < M; ++i)
+                mat[x][i] = mat[y][i] * v1 + mat[z][i] * v2;
+        }
+        else
+        {
+            int x = rand() % M;
+            int y = rand() % M;
+            int z = rand() % M;
+
+            int v1 = randInt();
+            int v2 = randInt();
+
+            A.linearCombinationColumn(x, y, z, v1, v2);
+
+            for (int i = 0; i < N; ++i)
+                mat[i][x] = mat[i][y] * v1 + mat[i][z] * v2;
+        }
+    }
+
+    for (int i = 0; i < N; ++i)
+        for (int j = 0; j < M; ++j)
+            assert(A.at(i, j) == mat[i][j]);
+
     return 0;
 }
